@@ -1,14 +1,13 @@
 import csv
-from collections import namedtuple, Counter, defaultdict
 import random
+from math import ceil
+from collections import Counter, defaultdict
 from copy import deepcopy
 
 
 # Global Variables
-# Hard Constraints
 CLASSROOMS = ["P411", "P412", "P413", "P414", "P415", "P416", "P417", "P418", "P419", "P420"]
 EXAM_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-EXAM_ROOM = namedtuple('classroom', 'room_name morning tutor_morning afternoon tutor_afternoon')
 
 
 class Solution:
@@ -41,6 +40,22 @@ class StudentData:
         output = f"Name: {self.name}\tUnits: {self.units}\n"
         return output
 
+
+class ExamRoom:
+    """
+    A class used to represent an exam room and its properties.
+    """
+    def __init__(self, room_name, morning_unit, morning_invigilator, afternoon_unit, afternoon_invigilator):
+        self.room_name = room_name
+        self.morning_unit = morning_unit
+        self.morning_invigilator = morning_invigilator
+        self.afternoon_unit = afternoon_unit
+        self.afternoon_invigilator = afternoon_invigilator
+    
+    def __repr__(self):
+        output = f"Room Name: {self.room_name}, Morning Unit: {self.morning_unit}, Morning Invigilator: {self.morning_invigilator}, Afternoon Unit: {self.afternoon_unit}, Afternoon Invigilator: {self.afternoon_invigilator}"
+        return output
+    
 
 def load_data():
     """
@@ -79,6 +94,7 @@ def load_data():
 def generate_exam_room(units, tutors):
     """
     Selecting a random unit and tutor and placing them in a random classroom.
+    :return: ExamRoom object.
     """
 
     available_units = units.copy()
@@ -95,14 +111,21 @@ def generate_exam_room(units, tutors):
     # Select a random classroom.
     room_name = random.choice(CLASSROOMS)
 
+    exam_room = ExamRoom(room_name=room_name, 
+        morning_unit=morning_unit, 
+        morning_invigilator=morning_tutor, 
+        afternoon_unit=afternoon_unit, 
+        afternoon_invigilator=afternoon_tutor)
+    
+    return exam_room
     # Assign the values to EXAM_ROOM namedtuple.
-    return EXAM_ROOM(
-        room_name=room_name,
-        morning=morning_unit,
-        tutor_morning=morning_tutor,
-        afternoon=afternoon_unit,
-        tutor_afternoon=afternoon_tutor
-    )
+    # return EXAM_ROOM(
+    #     room_name=room_name,
+    #     morning=morning_unit,
+    #     tutor_morning=morning_tutor,
+    #     afternoon=afternoon_unit,
+    #     tutor_afternoon=afternoon_tutor
+    # )
 
 
 def generate_population(population_size, units, tutors):
@@ -136,10 +159,10 @@ def generate_population(population_size, units, tutors):
                 exam_day.append(exam_room)
 
                 # Remove assigned units from available units to avoid units.
-                if exam_room.morning in available_units:
-                    available_units.remove(exam_room.morning)
-                if exam_room.afternoon in available_units:
-                    available_units.remove(exam_room.afternoon)
+                if exam_room.morning_unit in available_units:
+                    available_units.remove(exam_room.morning_unit)
+                if exam_room.afternoon_unit in available_units:
+                    available_units.remove(exam_room.afternoon_unit)
 
             # set the exam day to a day in the solution class.        
             solution.schedule[day] = exam_day
@@ -164,8 +187,8 @@ def hard_constraint_all_units(solution, units):
         class_list = solution.schedule[day]
 
         for _class in class_list:
-            exam_list.append(_class.morning)
-            exam_list.append(_class.afternoon)
+            exam_list.append(_class.morning_unit)
+            exam_list.append(_class.afternoon_unit)
 
     # Storing each unique unit code.
     exam_codes = set([unit for unit in units])
@@ -192,6 +215,7 @@ def hard_constraint_unit_count(unit_allocation):
     valid = True
     invalid_num_units = 0
 
+    # Iterating through students and checking the number of units.
     for student in unit_allocation:
         if len(student.units) < 1 and len(student.units) > 4:
             valid = False
@@ -202,79 +226,31 @@ def hard_constraint_unit_count(unit_allocation):
     return score, valid
 
 
-def count_student_exams_new(solution, student, day):
-    """
-    Helper function.
-    Counting the number of exams for each student on a given day.
-    :return: count
-    """
-    # Listing all exams (units) in a day.
-    exam_list = []
-    for unit in solution.schedule[day]:
-        exam_list.extend([unit.morning[0], unit.afternoon[0]])
-
-    # Couting the number of exams assigned to the student.
-    count = sum(1 for unit in [student.units] if unit in exam_list)
-
-    return count
-
-
-def count_student_exams(solution, student, day):
-    """
-    Helper function.
-    Counting the number of exams for each student on a given day.
-    :return: count
-    """
-    # Listing all exams (units) in a day.
-    exam_list = []
-    for unit in solution.schedule[day]:
-        exam_list.extend([unit.morning[0], unit.afternoon[0]])
-
-    # Couting the number of exams assigned to the student.
-    exam_counts = Counter(exam_list)
-    count = sum(1 for unit in student.units if exam_counts[unit] == 1)
-
-    return count
-
-
 def hard_constraint_exam_clash(solution, unit_allocation):
     """
     Hard constraint.
     A student cannot appear in more than one exam at a time.
     :return: Fitness score and valid.
     """
-
     valid = True
-
-    # Storing the number of exams in a week.
-    num_of_exams = defaultdict(int)
-
-    # For each student in each unit on each day.
-    for day in solution.schedule:
-        for student in unit_allocation:
-            # Count the number of exams for the student on the current day.
-            num_of_exams[student.name] += count_student_exams(solution, student, day)
-
     timeslot_clashes = 0
-    for name, count in num_of_exams.items():
+
+    # Iterating through each day and unit
+    exam_counts = Counter()
+    for day in solution.schedule:
+        for unit in solution.schedule[day]:
+
+            # Iterating through each student and counting the number of exams they have at a given timeslot.
+            for student in unit_allocation:
+                if unit.morning_unit[0] in student.units:
+                    exam_counts[(student.name, "morning")] += 1
+                if unit.afternoon_unit[0] in student.units:
+                    exam_counts[(student.name, "afternoon")] += 1
+
+    # More than 1 would indicate a timeslot clash.
+    for count in exam_counts.values():
         if count > 1:
-            # Check if the student has multiple exams in the same morning time slot.
-            if any(unit.morning in student.units for unit in solution.schedule[day]) and \
-                    any(unit.morning in student.units for unit in solution.schedule[day]):
-
-                # Add 1 to timeslot_clashes if true.
-                timeslot_clashes += 1
-
-            # Check if the student has multiple exams in the same afternoon time slot.
-            elif any(unit.afternoon in student.units for unit in solution.schedule[day]) and \
-                    any(unit.afternoon in student.units for unit in solution.schedule[day]):
-
-                # Add 1 to timeslot_clashes if true.
-                timeslot_clashes += 1
-
-    # Invalid exam timetable if there's a timeslot clash.
-    if timeslot_clashes > 0:
-        valid = False
+            timeslot_clashes += 1
 
     score = 1 / (1 + timeslot_clashes) * 10
 
@@ -299,8 +275,8 @@ def hard_constraint_tutor_clash(solution):
 
         # Store the assigned tutors in the morning and afternoon lists.
         for unit in unit_list:
-            morning_list.append(unit.tutor_morning)
-            afternoon_list.append(unit.tutor_afternoon)
+            morning_list.append(unit.morning_invigilator)
+            afternoon_list.append(unit.afternoon_invigilator)
         
         # Count the number of times each tutor is in the lists.
         morning_duplicates = Counter(morning_list)
@@ -337,7 +313,7 @@ def hard_constraint_duplicate_exams(solution):
     for day in solution.schedule:
         unit_list = solution.schedule[day]
         for unit in unit_list:
-            exam_list.extend([unit.morning, unit.afternoon])
+            exam_list.extend([unit.morning_unit, unit.afternoon_unit])
 
     # Count the number of duplicates
     duplicate_count = dict(Counter(exam_list))
@@ -349,6 +325,24 @@ def hard_constraint_duplicate_exams(solution):
 
     score = 1 / (1 + duplicates) * 10
     return score, valid
+
+
+def count_student_exams(solution, student, day):
+    """
+    Helper function.
+    Counting the number of exams for each student on a given day.
+    :return: count
+    """
+    # Listing all exams (units) in a day.
+    exam_list = []
+    for unit in solution.schedule[day]:
+        exam_list.extend([unit.morning_unit[0], unit.afternoon_unit[0]])
+
+    # Couting the number of exams assigned to the student.
+    count = sum(1 for unit in [student.units] if unit in exam_list)
+
+    return count
+
 
 def soft_constraint_two_exams(solution, unit_allocation):
     """
@@ -398,7 +392,7 @@ def soft_constraint_invigilation_duties(solution, units, tutors):
     
         # Store the assigned tutors in the morning and afternoon lists.
         for unit in unit_list:
-            invigilator_list.extend([unit.tutor_morning, unit.tutor_afternoon])
+            invigilator_list.extend([unit.morning_invigilator, unit.afternoon_invigilator])
         
         # Count the number of times each tutor is in the lists.
     invigilator_duty_count = Counter(invigilator_list)
@@ -417,6 +411,116 @@ def soft_constraint_invigilation_duties(solution, units, tutors):
     score = 1 / (1 + absolute) * 2
 
     return score, valid
+
+
+
+def get_fitness(solution):
+    """
+    Get the current fitness value from the solution.
+    """
+    return solution.fitness
+
+
+def elitism(population):
+    """
+    Elitism - get the top two solutions with highest fitness values.
+    :return: The two solutions with the highest fitness values.
+    """
+    population.sort(key=get_fitness, reverse=True)
+
+    return population[0], population[1]
+
+
+def selection(population):
+    """
+    Elitism and Roulette Wheel Selection.
+    Selecting parents with a length of half the population.
+    :return: parents
+    """
+    #Appending the two solutions with the highest fitness values.
+    parents = []    
+    parents.extend(elitism(population))
+
+    #The rest of the population are selected at random, with the higher fitness values having a greater chance of being selected.
+    parents[2:] = random.choices(population, weights=[s.fitness for s in population], k=ceil(len(population) / 2 - 2))
+    return parents
+
+
+def crossover(parent_a, parent_b):
+    """
+    Crossover. 
+    Combining the genetic information from two parents into two children.
+    :return: Two children.
+    """
+
+    #Setting a random crossover point in EXAM_DAYS and creating child variables.
+    crossover_point = random.randint(1, len(EXAM_DAYS))
+    child_a = Solution()
+    child_b = deepcopy(child_a)
+
+    #For each exam day, get the exam list from both parents.
+    for i, day in enumerate(EXAM_DAYS):
+        exams_list_a = parent_a.schedule[day]
+        exams_list_b = parent_b.schedule[day]
+
+        #Child1 gets the exam list before the crossover point from parent_a
+        #The remaining exams are given from parent_b
+        child_a.schedule[day] = deepcopy(exams_list_a if i < crossover_point else exams_list_b)
+
+        #Child 2 gets the opposite.
+        child_b.schedule[day] = deepcopy(exams_list_b if i < crossover_point else exams_list_a)
+
+    return child_a, child_b
+
+
+def apply_crossover(population, crossover_probability):
+    """
+    Applies crossover to two random individuals dependant on the probability.
+    :return: A new population.
+    """
+    crossovered_population = []
+
+    for i in range(len(population)):
+        if random.random() < crossover_probability:
+            parent_a, parent_b = random.sample(population, 2)
+            crossovered_population.extend(crossover(parent_a, parent_b))
+        else:
+            invividial_a, individial_b = random.sample(population, 2)
+            crossovered_population.extend([invividial_a, individial_b])
+    
+    return crossovered_population
+
+
+def mutation(individual, mutation_probability, units, tutors):
+    """
+    Mutation. 
+    Randomly changing the genetic information of an individual.
+    A random chance to alter the following:
+        The day and timeslot of an exam.
+        The room of the exam.
+        The exam's invigilator. 
+    :return: A mutated individual.
+    """
+    
+    return individual
+
+
+def apply_mutation(population, mutation_probability, units, tutors):
+    """
+    Mutation.
+    Applies mutation dependant on the probability.
+    :return: A new population
+    """
+    mutated_population = []
+
+    for individual in population:
+        if random.random() < mutation_probability:
+            mutated_individual = mutation(individual, mutation_probability, units, tutors)
+            mutated_population.append(mutated_individual)
+        else:
+            mutated_population.append(individual)
+
+    return mutated_population
 
 
 def constraints_check(solution, units, unit_allocation, tutors):
@@ -455,87 +559,12 @@ def calculate_fitness(population, units, unit_allocation, tutors):
         ei_score, equal_invigilators = soft_constraint_invigilation_duties(solution, units, tutors)
 
         fitness = au_score + uc_score + de_score + ec_score + tc_score + ce_score + ei_score        
-        solution.fitness = float(fitness)                             
+        solution.fitness = fitness                           
 
     return population
 
 
-def get_fitness(solution):
-    """
-    Get the current fitness value from the solution.
-    """
-    return solution.fitness
-
-
-def elitism(population):
-    """
-    Elitism - get the top two solutions with highest fitness values.
-    :return: The two solutions with the highest fitness values.
-    """
-    population.sort(key=get_fitness, reverse=True)
-
-    return population[0], population[1]
-
-
-def selection(population):
-    """
-    Elitism and Roulette Wheel Selection
-    :return: parents
-    """
-    #Appending the two solutions with the highest fitness values.
-    parents = []    
-    parents.extend(elitism(population))
-
-    #The rest of the population are selected at random, with the higher fitness values having a greater chance of being selected.
-    parents[2:] = random.choices(population, weights=[s.fitness for s in population], k=len(population))
-    return parents
-
-
-def crossover(parent_a, parent_b):
-    """
-    Crossover. 
-    Combining the genetic information from two parents into two children.
-    :return: two children from 2 parents
-    """
-
-    #Setting a random crossover point in EXAM_DAYS and creating child variables.
-    crossover_point = random.randint(1, len(EXAM_DAYS))
-    child1 = Solution()
-    child2 = deepcopy(child1)
-
-    #For each exam day, get the exam list from both parents.
-    for i, day in enumerate(EXAM_DAYS):
-        exams_list_a = parent_a.schedule[day]
-        exams_list_b = parent_b.schedule[day]
-
-        #Child1 gets the exam list before the crossover point from parent_a
-        #The remaining exams are given from parent_b
-        child1.schedule[day] = deepcopy(exams_list_a if i < crossover_point else exams_list_b)
-
-        #Child 2 gets the opposite.
-        child2.schedule[day] = deepcopy(exams_list_b if i < crossover_point else exams_list_a)
-
-    return child1, child2
-
-
-def apply_crossover(population, crossover_probability):
-    """
-    Applies crossover dependant on the probability.
-    :return: A new population.
-    """
-
-    crossovered_population = []
-
-    for i in range(len(population)):
-        if random.random() < crossover_probability:
-            parent_a, parent_b = random.sample(population, 2)
-            crossovered_population.extend(crossover(parent_a, parent_b))
-    
-    return crossovered_population
-
-
-
-def genetic_algorithm(population_size, max_generations, crossover_probability, units, tutors, unit_allocation):
+def genetic_algorithm(population_size, max_generations, crossover_probability, mutation_probability, units, tutors, unit_allocation):
     """
     The genetic algorithm.
     :return: The best solution.
@@ -554,10 +583,15 @@ def genetic_algorithm(population_size, max_generations, crossover_probability, u
         # Calculate the fitness of each solution.
         population_fitness = calculate_fitness(population[0], units, unit_allocation, tutors)
 
-        # Selection and crossover.
-        parents = selection(deepcopy(population_fitness))
+        # Selection
+        parents = selection(population_fitness)
+
+        # Crossover
         crossover_population = apply_crossover(parents, crossover_probability)
         calculate_fitness(crossover_population, units, unit_allocation, tutors)
+
+        # Mutation
+        mutated_population = apply_mutation(crossover_population, mutation_probability, units, tutors)
 
         # Get solution with highest fitness and assign it as best_solution.
         solution1, _ = elitism(crossover_population)
@@ -589,9 +623,9 @@ def genetic_algorithm(population_size, max_generations, crossover_probability, u
             best, _ = elitism(crossover_population)
             return best
     
-    else:
-        population.clear()
-        population.append(crossover_population)
+        else:
+            population.clear()
+            population.append(crossover_population)
 
     return best_solution
 
@@ -607,12 +641,12 @@ def main():
     unit_list, tutor_list, student_units = load_data()
 
 
-    population_size = 50
+    population_size = 100
     max_generations = 10
-    crossover_prob = 1
-    #mutation_prob = 0.1
+    crossover_prob = 0.8
+    mutation_prob = 0.5
 
-    solution = genetic_algorithm(population_size, max_generations, crossover_prob, unit_list, tutor_list, student_units)
+    solution = genetic_algorithm(population_size, max_generations, crossover_prob, mutation_prob, unit_list, tutor_list, student_units)
 
     print(solution)
 
