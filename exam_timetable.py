@@ -98,7 +98,7 @@ def load_data():
 
 def generate_exam_room(units, tutors, classroom):
     """
-    Selecting a random morning & afternoon units and tutors and creating an exam room.
+    Selecting a random morning & afternoon unit and tutor and creating an exam room.
     :return: ExamRoom object.
     """
 
@@ -126,7 +126,7 @@ def generate_exam_room(units, tutors, classroom):
 def generate_population(population_size, units, tutors):
     """
     Generate a random population.
-    Ensures all units are given a room and invigilator and set as an exam.
+    Picks a random room and selects a random morning and afternoon unit and invigilator.
     :return: A new population. 
     """
     new_population = []
@@ -232,7 +232,7 @@ def hard_constraint_exam_clash(solution, unit_allocation):
     """
     Hard constraint.
     A student cannot appear in more than one exam at a time.
-    :return: Fitness score and valid.
+    :return: The score of the constraint and valid.
     """
     valid = True
     timeslot_clashes = 0
@@ -269,7 +269,8 @@ def hard_constraint_tutor_clash(solution):
     """
     Hard constraint.
     A tutor can only invigilate one exam at a time.
-    Counts the number of times a tutor invigilates an exam at each time slot.
+    Counts the number of times a tutor invigilates more than 1 exam at each time slot.
+    :return: The score of the constraint and valid.
     """
     # Counting the number of clashes.
     clashes = 0
@@ -364,7 +365,7 @@ def soft_constraint_two_exams(solution, unit_allocation):
     """
     Soft constraint.
     A Student should not sit in more than one exam consecutively in a day. 
-    :return: Fitness score and valid.
+    :return: The score of the constraint and valid.
     """
 
     valid = True
@@ -401,6 +402,7 @@ def soft_constraint_invigilation_duties(solution, units, tutors):
     """
     Soft constraint.
     Tutors should have an equal number of invigilation duties.
+    :return: The score of the constraint and valid.
     """
     # Counting the number of clashes.
     invigilator_list = []
@@ -614,6 +616,7 @@ def constraints_check(solution, units, unit_allocation, tutors):
 def calculate_fitness(population, units, unit_allocation, tutors):
     """
     Calculate fitness score for each solution in the population.
+    :return: The population with a fitness score on each solution.
     """
     for solution in population:
         au_score, all_units = hard_constraint_all_units(solution, units)
@@ -637,7 +640,7 @@ def genetic_algorithm(population_size, max_generations, crossover_probability, m
     Generates a random population. 
     Checks fitness.
     Applies selection, crossover, and mutation.
-    Checks fitness and replaces the old population.
+    Checks new fitness and replaces the old population.
     :return: The best solution.
     """
 
@@ -709,7 +712,7 @@ def main():
 
     # Set parameters.
     population_size = 100
-    max_generations = 50
+    max_generations = 10
     crossover_prob = 1
     mutation_prob = 0.7
 
