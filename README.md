@@ -1,6 +1,8 @@
 # MI-Assessment
 Machine Intelligence Assessment
 
+Create an evolutionary algorithm to generate an exam timetable.
+
 
 Current output:
 
