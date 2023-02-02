@@ -1,7 +1,6 @@
-# MI-Assessment
-Machine Intelligence Assessment
+# Creating and optimising an exam timetable via a genetic algorithm.
 
-Create an evolutionary algorithm to generate an exam timetable.
+Generates a population, applies a fitness function, applies selection, crossover, and mutation.
 
 
 Current output:
