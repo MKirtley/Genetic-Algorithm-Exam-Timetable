@@ -1,8 +1,3 @@
-"""
-Exam timetable generator.
-Inspired, altered and improved from HxnDev's example: https://github.com/HxnDev/Exam-Scheduler-Generator-Using-Genetic-Algorithm
-"""
-
 import csv
 import random
 from math import ceil
@@ -619,14 +614,14 @@ def calculate_fitness(population, units, unit_allocation, tutors):
     :return: The population with a fitness score on each solution.
     """
     for solution in population:
-        au_score, all_units = hard_constraint_all_units(solution, units)
-        de_score, duplicate_exams = hard_constraint_duplicate_exams(solution)
-        ec_score, exam_clash = hard_constraint_exam_clash(solution, unit_allocation)
-        tc_score, tutor_clash = hard_constraint_tutor_clash(solution)
-        uc_score, unit_count = hard_constraint_unit_count(unit_allocation)
+        au_score, _ = hard_constraint_all_units(solution, units)
+        de_score, _ = hard_constraint_duplicate_exams(solution)
+        ec_score, _ = hard_constraint_exam_clash(solution, unit_allocation)
+        tc_score, _ = hard_constraint_tutor_clash(solution)
+        uc_score, _ = hard_constraint_unit_count(unit_allocation)
 
-        ce_score, consecutive_exams = soft_constraint_two_exams(solution, unit_allocation)
-        ei_score, equal_invigilators = soft_constraint_invigilation_duties(solution, units, tutors)
+        ce_score, _ = soft_constraint_two_exams(solution, unit_allocation)
+        ei_score, _ = soft_constraint_invigilation_duties(solution, units, tutors)
 
         fitness = au_score + de_score + ec_score + tc_score + uc_score + ce_score + ei_score        
         solution.fitness = fitness                           
@@ -685,7 +680,7 @@ def genetic_algorithm(population_size, max_generations, crossover_probability, m
         
         # Set the current solution to the previous best to check stagnation 
         previous_best = deepcopy(best_solution.fitness)
-        print(f"\nGeneration: {i+1}\t Current best fitness: {best_solution.fitness}\t Stagnant: {stagnant}")
+        print(f"\nGeneration: {i+1},Current best fitness: {best_solution.fitness},Stagnant: {stagnant}")
         
         # Check if all hard and soft constraints are fulfilled and return optimal solution if so.
         if constraints_check(best_solution, units, unit_allocation, tutors):
@@ -712,14 +707,15 @@ def main():
 
     # Set parameters.
     population_size = 100
-    max_generations = 10
-    crossover_prob = 1
-    mutation_prob = 0.7
+    max_generations = 50
+    crossover_prob = 0.8
+    mutation_prob = 0.5
 
     # Generate Solution.
     solution = genetic_algorithm(population_size, max_generations, crossover_prob, mutation_prob, unit_list, tutor_list, student_units)
 
     # Print Results.
+    print("\n")
     print(solution)
     print(f"\nPopulation Size: {population_size}\nMax Generations: {max_generations}\nCrossover Probability: {crossover_prob}\nMutation Probability: {mutation_prob}")
 
